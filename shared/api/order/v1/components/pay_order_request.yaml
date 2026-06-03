@@ -1,0 +1,12 @@
+type: object
+required:
+  - payment_method
+properties:
+  payment_method:
+    type: string
+    description: The payment method to use for the order.
+    enum:
+      - PAYMENT_METHOD_CARD
+      - PAYMENT_METHOD_SBP
+      - PAYMENT_METHOD_CREDIT_CARD
+      - PAYMENT_METHOD_INVESTOR_MONEY

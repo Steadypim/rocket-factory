@@ -1,0 +1,41 @@
+type: object
+properties:
+  order_uuid:
+    type: string
+    description: The unique identifier for the order
+    example: "123e4567-e89b-12d3-a456-426614174000"
+  user_uuid:
+    type: string
+    description: The unique identifier for the user
+    example: "123e4567-e89b-12d3-a456-426614174000"
+  part_uuids:
+    type: array
+    description: The unique identifiers for the parts
+    example: ["123e4567-e89b-12d3-a456-426614174000", "234e5678-f90a-12d3-a456-426614174000"]
+    minItems: 1
+    items:
+      type: string
+  total_price:
+    type: number
+    description: The total price of the order
+    example: 100.50
+  transaction_uuid:
+    type: string
+    description: The unique identifier for the transaction
+    example: "123e4567-e89b-12d3-a456-426614174000"
+  payment_method:
+    type: string
+    description: The payment method used for the transaction
+    enum:
+      - PAYMENT_METHOD_UNKNOWN
+      - PAYMENT_METHOD_CARD
+      - PAYMENT_METHOD_SBP
+      - PAYMENT_METHOD_CREDIT_CARD
+      - PAYMENT_METHOD_INVESTOR_MONEY
+  status:
+    type: string
+    description: The status of the order
+    enum:
+      - PENDING_PAYMENT
+      - PAID
+      - CANCELLED

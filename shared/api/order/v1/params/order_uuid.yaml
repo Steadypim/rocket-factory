@@ -1,0 +1,7 @@
+name: order_uuid
+in: path
+required: true
+description: UUID of the order to pay
+schema:
+  type: string
+  format: uuid

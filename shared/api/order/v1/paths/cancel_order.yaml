@@ -1,0 +1,28 @@
+parameters:
+  - $ref: ../params/order_uuid.yaml
+
+post:
+  summary: Cancel an order
+  description: Cancel an order by its UUID
+  operationId: CancelOrder
+  responses:
+    '204':
+      description: Order cancelled successfully
+    '404':
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/not_found_error.yaml
+    '409':
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/generic_error.yaml
+    default:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: ../components/errors/generic_error.yaml

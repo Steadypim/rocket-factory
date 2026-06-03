@@ -1,0 +1,10 @@
+type: object
+properties:
+  uuid:
+    type: string
+    description: id заказа
+    example: 123e4567-e89b-12d3-a456-426614174000
+  total_price:
+    type: number
+    description: общая цена
+    example: 1000.00

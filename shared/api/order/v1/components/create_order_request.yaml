@@ -1,0 +1,16 @@
+type: object
+required:
+  - user_uuid
+  - part_uuids
+properties:
+  user_uuid:
+    type: string
+    description: id пользователя
+    example: 123e4567-e89b-12d3-a456-426614174000
+  part_uuids:
+    type: array
+    description: список id частей
+    minItems: 1
+    items:
+      type: string
+    example: ["part1", "part2", "part3"]
