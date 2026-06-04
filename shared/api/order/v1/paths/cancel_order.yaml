@@ -13,16 +13,16 @@ post:
       content:
         application/json:
           schema:
-            $ref: ../components/errors/not_found_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/NotFoundError
     '409':
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: ../components/errors/generic_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/GenericError
     default:
       description: Unexpected error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/generic_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/GenericError

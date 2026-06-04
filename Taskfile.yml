@@ -9,8 +9,7 @@ vars:
   BUF_VERSION: '1.53.0'
   PROTOC_GEN_GO_VERSION: 'v1.36.6'
   PROTOC_GEN_GO_GRPC_VERSION: 'v1.5.1'
-  OGEN_VERSION: 'v1.12.0'
-  YQ_VERSION: 'v4.45.2'
+  OAPI_CODEGEN_VERSION: 'v2.7.0'
   GRPCURL_VERSION: 'v1.9.3'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
@@ -18,19 +17,15 @@ vars:
   GCI: '{{.BIN_DIR}}/gci'
   GOFUMPT: '{{.BIN_DIR}}/gofumpt'
   BUF: '{{.BIN_DIR}}/buf'
-  OGEN: '{{.BIN_DIR}}/ogen'
-  YQ: '{{.BIN_DIR}}/yq'
+  OAPI_CODEGEN: '{{.BIN_DIR}}/oapi-codegen'
   PROTOC_GEN_GO: '{{.BIN_DIR}}/protoc-gen-go'
   PROTOC_GEN_GO_GRPC: '{{.BIN_DIR}}/protoc-gen-go-grpc'
   GRPCURL: '{{.BIN_DIR}}/grpcurl'
 
-  NODE_MODULES_DIR: '{{.ROOT_DIR}}/node_modules/.bin'
-  REDOCLY: '{{.NODE_MODULES_DIR}}/redocly'
-
   OPEN_API_ORDER_V1_BASE: '{{.ROOT_DIR}}/shared/api/order/v1/order.openapi.yaml'
-  OPEN_API_ORDER_V1_BUNDLE: '{{.ROOT_DIR}}/shared/api/bundles/order.openapi.v1.bundle.yaml'
-
-  OPEN_API_FILES: '{{.ROOT_DIR}}/shared/api/bundles'
+  OPEN_API_ORDER_V1_COMPONENTS: '{{.ROOT_DIR}}/shared/api/order/v1/components.openapi.yaml'
+  OPEN_API_ORDER_V1_MODELS_CONFIG: '{{.ROOT_DIR}}/shared/api/order/v1/oapi-models.cfg.yaml'
+  OPEN_API_ORDER_V1_SERVER_CONFIG: '{{.ROOT_DIR}}/shared/api/order/v1/oapi-server.cfg.yaml'
 
   MODULES: assembly inventory order payment platform iam notification
 
@@ -173,61 +168,28 @@ tasks:
     cmds:
       - '{{.BUF}} lint'
 
-  redocly-cli:install:
-    desc: Установить локально Redocly CLI
+  oapi-codegen:install:
+    desc: "Скачивает oapi-codegen в папку bin"
     cmds:
       - |
-        [ -f {{.REDOCLY}} ] || {
-          npm ci
-        }
-
-  redocly-cli:order-v1-bundle:
-    desc: Собрать OpenAPI в один файл через локальный redocly
-    deps: [ redocly-cli:install ]
-    cmds:
-      - '{{.REDOCLY}} bundle {{.OPEN_API_ORDER_V1_BASE}} -o {{.OPEN_API_ORDER_V1_BUNDLE}}'
-
-  redocly-cli:bundle:
-    desc: Собрать все схемы OpenAPI в общие файлы через локальный redocly
-    deps: [ redocly-cli:install ]
-    cmds:
-      - task: redocly-cli:order-v1-bundle
-
-  ogen:install:
-    desc: "Скачивает ogen в папку bin"
-    cmds:
-      - |
-        [ -f {{.OGEN}} ] || {
+        [ -f {{.OAPI_CODEGEN}} ] || {
           mkdir -p {{.BIN_DIR}}
-          GOBIN={{.BIN_DIR}} go install github.com/ogen-go/ogen/cmd/ogen@{{.OGEN_VERSION}}
+          GOBIN={{.BIN_DIR}} go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@{{.OAPI_CODEGEN_VERSION}}
         }
 
-  ogen:gen:
-    desc: "Генерация Go-кода из всех OpenAPI-деклараций с x-ogen"
-    deps: [ ogen:install, yq:install ]
+  oapi-codegen:gen:
+    desc: "Генерация Go-кода из OpenAPI-деклараций через oapi-codegen"
+    deps: [ oapi-codegen:install ]
+    dir: shared/api/order/v1
     cmds:
-      - task: redocly-cli:bundle
-      - |
-        find {{.OPEN_API_FILES}} -name '*.yaml' -o -name '*.yml' | while read -r file; do
-          if [ -f "$file" ] && grep -q 'x-ogen:' "$file"; then
-            echo "🚀 Generating from: $file"
-            target=$({{.YQ}} e '."x-ogen".target' "$file")
-            package=$({{.YQ}} e '."x-ogen".package' "$file")
-            echo "📁 Target: $target"
-            echo "📦 Package: $package"
-            {{.OGEN}} \
-              --target "$target" \
-              --package "$package" \
-              --clean \
-              "$file" || exit 1
-          fi
-        done
+      - '{{.OAPI_CODEGEN}} --config {{.OPEN_API_ORDER_V1_MODELS_CONFIG}} {{.OPEN_API_ORDER_V1_COMPONENTS}}'
+      - '{{.OAPI_CODEGEN}} --config {{.OPEN_API_ORDER_V1_SERVER_CONFIG}} {{.OPEN_API_ORDER_V1_BASE}}'
 
   gen:
     desc: "Генерация всех proto и OpenAPI деклараций"
     cmds:
       - task: proto:gen
-      - task: ogen:gen
+      - task: oapi-codegen:gen
 
   deps:update:
     desc: "Обновление зависимостей в go.mod во всех модулях"
@@ -240,15 +202,6 @@ tasks:
             (cd "$mod" && go mod tidy -compat=1.24) || exit 1
           fi
         done
-
-  yq:install:
-    desc: "Устанавливает yq в bin/ при необходимости"
-    cmds:
-      - |
-        [ -f {{.YQ}} ] || {
-          echo '📦 Installing yq...'
-          GOBIN={{.BIN_DIR}} go install github.com/mikefarah/yq/v4@{{.YQ_VERSION}}
-        }
 
   grpcurl:install:
     desc: "Устанавливает grpcurl в каталог bin"

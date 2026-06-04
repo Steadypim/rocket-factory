@@ -8,29 +8,29 @@ post:
     content:
       application/json:
         schema:
-          $ref: ../components/create_order_request.yaml
+          $ref: ../components.openapi.yaml#/components/schemas/CreateOrderRequest
   responses:
     '200':
       description: Order successfully created
       content:
         application/json:
           schema:
-            $ref: ../components/created_order.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/CreatedOrder
     '400':
       description: Bad request - validation error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/bad_request_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/BadRequestError
     '500':
       description: Internal server error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/internal_server_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/InternalServerError
     default:
       description: Unexpected error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/generic_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/GenericError

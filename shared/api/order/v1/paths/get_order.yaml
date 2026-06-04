@@ -11,22 +11,22 @@ get:
       content:
         application/json:
           schema:
-            $ref: ../components/order.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/Order
     '404':
       description: Not found
       content:
         application/json:
           schema:
-            $ref: ../components/errors/not_found_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/NotFoundError
     '500':
       description: Internal server error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/internal_server_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/InternalServerError
     'default':
       description: Unexpected error
       content:
         application/json:
           schema:
-            $ref: ../components/errors/generic_error.yaml
+            $ref: ../components.openapi.yaml#/components/schemas/GenericError

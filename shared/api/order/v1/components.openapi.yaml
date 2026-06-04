@@ -1,0 +1,27 @@
+openapi: 3.0.3
+info:
+  title: OrderService API components
+  version: 1.0.0
+
+paths: {}
+
+components:
+  schemas:
+    BadRequestError:
+      $ref: ./components/errors/bad_request_error.yaml
+    CreatedOrder:
+      $ref: ./components/created_order.yaml
+    GenericError:
+      $ref: ./components/errors/generic_error.yaml
+    InternalServerError:
+      $ref: ./components/errors/internal_server_error.yaml
+    NotFoundError:
+      $ref: ./components/errors/not_found_error.yaml
+    Order:
+      $ref: ./components/order.yaml
+    OrderPayment:
+      $ref: ./components/order_payment.yaml
+    PayOrderRequest:
+      $ref: ./components/pay_order_request.yaml
+    CreateOrderRequest:
+      $ref: ./components/create_order_request.yaml

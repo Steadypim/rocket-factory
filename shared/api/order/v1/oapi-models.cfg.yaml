@@ -1,0 +1,21 @@
+# Имя Go-пакета для сгенерированных OpenAPI-моделей.
+package: order_v1
+
+# Файл, в который oapi-codegen запишет Go-типы схем из components.openapi.yaml.
+output: ../../../pkg/openapi/order/v1/models.gen.go
+
+# Генерируем только Go-модели из OpenAPI-схем. HTTP server/client код из этого
+# конфига не создается.
+generate:
+  models: true
+
+output-options:
+  # Не удаляем схемы из components.openapi.yaml, даже если внутри этого файла
+  # они напрямую не используются. Основной API spec ссылается на них из
+  # order.openapi.yaml.
+  skip-prune: true
+
+  # Где oapi-codegen позволяет, генерируем optional-поля как value fields с
+  # `omitempty`, а не как указатели. Так модели ближе к прежнему value-style коду
+  # сервиса.
+  prefer-skip-optional-pointer: true

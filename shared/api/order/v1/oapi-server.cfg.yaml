@@ -1,0 +1,39 @@
+# Имя Go-пакета для сгенерированного HTTP server/client кода. Должно совпадать
+# с пакетом моделей, потому что import-mapping ниже указывает внешние схемы в
+# этот же пакет.
+package: order_v1
+
+# Файл, в который oapi-codegen запишет router, strict server interfaces,
+# request/response object types и HTTP client из order.openapi.yaml.
+output: ../../../pkg/openapi/order/v1/api.gen.go
+
+generate:
+  # Генерируем chi router bindings для OpenAPI paths.
+  chi-server: true
+
+  # Генерируем strict request/response object interfaces вместо handler-ов на
+  # сырых http.ResponseWriter/http.Request.
+  strict-server: true
+
+  # Генерируем HTTP client для кода, который будет вызывать API по этому
+  # OpenAPI-контракту.
+  client: true
+
+  # Нужно здесь, чтобы появились request body aliases вроде
+  # `type CreateOrderJSONRequestBody = CreateOrderRequest`. Сами schema structs
+  # генерируются отдельно в models.gen.go через oapi-models.cfg.yaml.
+  models: true
+
+output-options:
+  # Не удаляем body aliases и response types, даже если pruning считает внешние
+  # mapped schemas уже сгенерированными в другом месте.
+  skip-prune: true
+
+  # Где возможно, оставляем optional-поля value fields с `omitempty`, как и в
+  # конфиге генерации моделей.
+  prefer-skip-optional-pointer: true
+
+# Мапим внешние OpenAPI-ссылки из path-файлов в этот же Go-пакет. Значение `-`
+# означает self-package import mapping в oapi-codegen.
+import-mapping:
+  ../components.openapi.yaml: "-"

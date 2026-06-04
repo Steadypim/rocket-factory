@@ -61,16 +61,27 @@ func NewOrderHandler(
 	}
 }
 
-func (h *OrderHandler) CreateOrder(ctx context.Context, req *order_v1.CreateOrderRequest) (order_v1.CreateOrderRes, error) {
-	if req.UserUUID == "" {
-		return &order_v1.BadRequestError{
+func (h *OrderHandler) CreateOrder(
+	ctx context.Context,
+	request order_v1.CreateOrderRequestObject,
+) (order_v1.CreateOrderResponseObject, error) {
+	if request.Body == nil {
+		return order_v1.CreateOrder400JSONResponse{
+			Code:    http.StatusBadRequest,
+			Message: "request body is required",
+		}, nil
+	}
+
+	req := request.Body
+	if req.UserUuid == "" {
+		return order_v1.CreateOrder400JSONResponse{
 			Code:    http.StatusBadRequest,
 			Message: "user_uuid is required",
 		}, nil
 	}
 
 	if len(req.PartUuids) == 0 {
-		return &order_v1.BadRequestError{
+		return order_v1.CreateOrder400JSONResponse{
 			Code:    http.StatusBadRequest,
 			Message: "part_uuids is required",
 		}, nil
@@ -80,7 +91,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *order_v1.CreateOrde
 		Uuids: req.PartUuids,
 	})
 	if err != nil {
-		return &order_v1.InternalServerError{
+		return order_v1.CreateOrder500JSONResponse{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}, nil
@@ -96,7 +107,7 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *order_v1.CreateOrde
 	for _, partUUID := range req.PartUuids {
 		part, ok := foundParts[partUUID]
 		if !ok {
-			return &order_v1.BadRequestError{
+			return order_v1.CreateOrder400JSONResponse{
 				Code:    http.StatusBadRequest,
 				Message: fmt.Sprintf("part with uuid %s not found", partUUID),
 			}, nil
@@ -107,93 +118,111 @@ func (h *OrderHandler) CreateOrder(ctx context.Context, req *order_v1.CreateOrde
 	orderUUID := uuid.NewString()
 
 	order := &order_v1.Order{
-		OrderUUID:  order_v1.NewOptString(orderUUID),
-		UserUUID:   order_v1.NewOptString(req.UserUUID),
+		OrderUuid:  orderUUID,
+		UserUuid:   req.UserUuid,
 		PartUuids:  req.PartUuids,
-		TotalPrice: order_v1.NewOptFloat64(totalPrice),
-		Status:     order_v1.NewOptOrderStatus(order_v1.OrderStatusPENDINGPAYMENT),
+		TotalPrice: float32(totalPrice),
+		Status:     order_v1.PENDINGPAYMENT,
 	}
 
 	h.storage.mu.Lock()
 	h.storage.orders[orderUUID] = order
 	h.storage.mu.Unlock()
 
-	return &order_v1.CreatedOrder{
-		UUID:       order_v1.NewOptString(orderUUID),
-		TotalPrice: order_v1.NewOptFloat64(totalPrice),
+	return order_v1.CreateOrder200JSONResponse{
+		Uuid:       orderUUID,
+		TotalPrice: float32(totalPrice),
 	}, nil
 }
 
-func (h *OrderHandler) CancelOrder(_ context.Context, params order_v1.CancelOrderParams) (order_v1.CancelOrderRes, error) {
-	orderUUID := params.OrderUUID.String()
+func (h *OrderHandler) CancelOrder(
+	_ context.Context,
+	request order_v1.CancelOrderRequestObject,
+) (order_v1.CancelOrderResponseObject, error) {
+	orderUUID := request.OrderUuid.String()
 
 	h.storage.mu.Lock()
 	defer h.storage.mu.Unlock()
 
 	storedOrder, ok := h.storage.orders[orderUUID]
 	if !ok {
-		return &order_v1.NotFoundError{
+		return order_v1.CancelOrder404JSONResponse{
 			Code:    http.StatusNotFound,
 			Message: "order not found",
 		}, nil
 	}
 
-	if storedOrder.Status.Value == order_v1.OrderStatusPAID {
-		return &order_v1.GenericError{
-			Code:    order_v1.NewOptInt(http.StatusConflict),
-			Message: order_v1.NewOptString("paid order cannot be cancelled"),
+	if storedOrder.Status == order_v1.PAID {
+		return order_v1.CancelOrder409JSONResponse{
+			Code:    http.StatusConflict,
+			Message: "paid order cannot be cancelled",
 		}, nil
 	}
 
-	storedOrder.Status = order_v1.NewOptOrderStatus(order_v1.OrderStatusCANCELLED)
+	storedOrder.Status = order_v1.CANCELLED
 
-	return &order_v1.CancelOrderNoContent{}, nil
+	return order_v1.CancelOrder204Response{}, nil
 }
 
-func (h *OrderHandler) GetOrder(_ context.Context, params order_v1.GetOrderParams) (order_v1.GetOrderRes, error) {
-	orderUUID := params.OrderUUID.String()
+func (h *OrderHandler) GetOrder(
+	_ context.Context,
+	request order_v1.GetOrderRequestObject,
+) (order_v1.GetOrderResponseObject, error) {
+	orderUUID := request.OrderUuid.String()
 
 	h.storage.mu.RLock()
 	storedOrder, ok := h.storage.orders[orderUUID]
 	h.storage.mu.RUnlock()
 
 	if !ok {
-		return &order_v1.NotFoundError{
+		return order_v1.GetOrder404JSONResponse{
 			Code:    http.StatusNotFound,
 			Message: "order not found",
 		}, nil
 	}
 
-	return storedOrder, nil
+	return order_v1.GetOrder200JSONResponse(*storedOrder), nil
 }
 
-func (h *OrderHandler) PayOrder(ctx context.Context, req *order_v1.PayOrderRequest, params order_v1.PayOrderParams) (order_v1.PayOrderRes, error) {
-	orderUUID := params.OrderUUID.String()
+func (h *OrderHandler) PayOrder(
+	ctx context.Context,
+	request order_v1.PayOrderRequestObject,
+) (order_v1.PayOrderResponseObject, error) {
+	orderUUID := request.OrderUuid.String()
+
+	if request.Body == nil {
+		return order_v1.PayOrder400JSONResponse{
+			Code:    http.StatusBadRequest,
+			Message: "request body is required",
+		}, nil
+	}
+
+	req := request.Body
 
 	h.storage.mu.RLock()
 	storedOrder, ok := h.storage.orders[orderUUID]
 	if !ok {
 		h.storage.mu.RUnlock()
-		return &order_v1.NotFoundError{
+		return order_v1.PayOrder404JSONResponse{
 			Code:    http.StatusNotFound,
 			Message: "order not found",
 		}, nil
 	}
 
-	if storedOrder.Status.Value == order_v1.OrderStatusCANCELLED {
+	if storedOrder.Status == order_v1.CANCELLED {
 		h.storage.mu.RUnlock()
-		return &order_v1.BadRequestError{
+		return order_v1.PayOrder400JSONResponse{
 			Code:    http.StatusBadRequest,
 			Message: "cancelled order cannot be paid",
 		}, nil
 	}
 
-	userUUID := storedOrder.UserUUID.Value
+	userUUID := storedOrder.UserUuid
 	h.storage.mu.RUnlock()
 
 	paymentMethod, orderPaymentMethod, err := mapPaymentMethod(req.PaymentMethod)
 	if err != nil {
-		return &order_v1.BadRequestError{
+		return order_v1.PayOrder400JSONResponse{
 			Code:    http.StatusBadRequest,
 			Message: err.Error(),
 		}, nil
@@ -205,7 +234,7 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *order_v1.PayOrderReque
 		PaymentMethod: paymentMethod,
 	})
 	if err != nil {
-		return &order_v1.InternalServerError{
+		return order_v1.PayOrder500JSONResponse{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 		}, nil
@@ -216,14 +245,14 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *order_v1.PayOrderReque
 
 	storedOrder, ok = h.storage.orders[orderUUID]
 	if !ok {
-		return &order_v1.NotFoundError{
+		return order_v1.PayOrder404JSONResponse{
 			Code:    http.StatusNotFound,
 			Message: "order not found",
 		}, nil
 	}
 
-	if storedOrder.Status.Value == order_v1.OrderStatusCANCELLED {
-		return &order_v1.BadRequestError{
+	if storedOrder.Status == order_v1.CANCELLED {
+		return order_v1.PayOrder400JSONResponse{
 			Code:    http.StatusBadRequest,
 			Message: "cancelled order cannot be paid",
 		}, nil
@@ -231,12 +260,12 @@ func (h *OrderHandler) PayOrder(ctx context.Context, req *order_v1.PayOrderReque
 
 	transactionUUID := paymentResp.GetTransactionUuid()
 
-	storedOrder.Status = order_v1.NewOptOrderStatus(order_v1.OrderStatusPAID)
-	storedOrder.TransactionUUID = order_v1.NewOptString(transactionUUID)
-	storedOrder.PaymentMethod = order_v1.NewOptOrderPaymentMethod(orderPaymentMethod)
+	storedOrder.Status = order_v1.PAID
+	storedOrder.TransactionUuid = transactionUUID
+	storedOrder.PaymentMethod = orderPaymentMethod
 
-	return &order_v1.OrderPayment{
-		TransactionUUID: transactionUUID,
+	return order_v1.PayOrder200JSONResponse{
+		TransactionUuid: transactionUUID,
 	}, nil
 }
 
@@ -252,16 +281,6 @@ func mapPaymentMethod(method order_v1.PayOrderRequestPaymentMethod) (payment_v1.
 		return payment_v1.PaymentMethod_PAYMENT_METHOD_INVESTOR_MONEY, order_v1.OrderPaymentMethodPAYMENTMETHODINVESTORMONEY, nil
 	default:
 		return payment_v1.PaymentMethod_PAYMENT_METHOD_UNKNOWN, order_v1.OrderPaymentMethodPAYMENTMETHODUNKNOWN, fmt.Errorf("unsupported payment method %q", method)
-	}
-}
-
-func (*OrderHandler) NewError(_ context.Context, err error) *order_v1.GenericErrorStatusCode {
-	return &order_v1.GenericErrorStatusCode{
-		StatusCode: http.StatusInternalServerError,
-		Response: order_v1.GenericError{
-			Code:    order_v1.NewOptInt(http.StatusInternalServerError),
-			Message: order_v1.NewOptString(err.Error()),
-		},
 	}
 }
 
@@ -294,18 +313,13 @@ func main() {
 
 	storageHandler := NewOrderHandler(storage, inventoryClient, paymentClient)
 
-	storageServer, err := order_v1.NewServer(storageHandler)
-	if err != nil {
-		slog.Error("Ошибка создания сервера OpenAPI", "error", err)
-	}
-
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(10 * time.Second))
 
-	r.Mount("/", storageServer)
+	order_v1.HandlerFromMux(order_v1.NewStrictHandler(storageHandler, nil), r)
 
 	// Запускаем HTTP-сервер
 	server := &http.Server{
