@@ -1,0 +1,31 @@
+all: false
+dir: "{{ .InterfaceDir }}/mocks"
+filename: "mock_{{ .InterfaceName | snakecase }}.go"
+force-file-write: true
+formatter: goimports
+formatter-options:
+  goimports:
+    local-prefix: github.com/Steadypim/rocket-factory
+generate: true
+log-level: info
+pkgname: mocks
+recursive: false
+structname: "Mock{{ .InterfaceName }}"
+template: testify
+template-schema: "{{ .Template }}.schema.json"
+packages:
+  github.com/Steadypim/rocket-factory/order/internal/repository:
+    config:
+      include-interface-regex: ^OrderRepository$
+  github.com/Steadypim/rocket-factory/order/internal/service:
+    config:
+      include-interface-regex: ^(OrderService|InventoryClient|PaymentClient)$
+  github.com/Steadypim/rocket-factory/inventory/internal/repository:
+    config:
+      include-interface-regex: ^PartRepository$
+  github.com/Steadypim/rocket-factory/inventory/internal/service:
+    config:
+      include-interface-regex: ^PartService$
+  github.com/Steadypim/rocket-factory/payment/internal/service:
+    config:
+      include-interface-regex: ^PaymentService$

@@ -11,6 +11,7 @@ vars:
   PROTOC_GEN_GO_GRPC_VERSION: 'v1.5.1'
   OAPI_CODEGEN_VERSION: 'v2.7.0'
   GRPCURL_VERSION: 'v1.9.3'
+  MOCKERY_VERSION: 'v3.7.0'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
@@ -21,6 +22,7 @@ vars:
   PROTOC_GEN_GO: '{{.BIN_DIR}}/protoc-gen-go'
   PROTOC_GEN_GO_GRPC: '{{.BIN_DIR}}/protoc-gen-go-grpc'
   GRPCURL: '{{.BIN_DIR}}/grpcurl'
+  MOCKERY: '{{.BIN_DIR}}/mockery'
 
   OPEN_API_ORDER_V1_BASE: '{{.ROOT_DIR}}/shared/api/order/v1/order.openapi.yaml'
   OPEN_API_ORDER_V1_COMPONENTS: '{{.ROOT_DIR}}/shared/api/order/v1/components.openapi.yaml'
@@ -28,6 +30,7 @@ vars:
   OPEN_API_ORDER_V1_SERVER_CONFIG: '{{.ROOT_DIR}}/shared/api/order/v1/oapi-server.cfg.yaml'
 
   MODULES: assembly inventory order payment platform iam notification
+  SERVICE_MODULES: inventory order payment
 
 tasks:
   install-formatters:
@@ -191,6 +194,24 @@ tasks:
       - task: proto:gen
       - task: oapi-codegen:gen
 
+  mockery:install:
+    desc: "Устанавливает mockery в каталог bin"
+    cmds:
+      - |
+        [ -f {{.MOCKERY}} ] || {
+          mkdir -p {{.BIN_DIR}}
+          echo '📦 Устанавливаем mockery {{.MOCKERY_VERSION}}...'
+          GOBIN={{.BIN_DIR}} go install github.com/vektra/mockery/v3@{{.MOCKERY_VERSION}}
+        }
+    status:
+      - test -x {{.MOCKERY}}
+
+  mockery:gen:
+    desc: "Генерирует моки для интерфейсов repository и service слоев"
+    deps: [ mockery:install ]
+    cmds:
+      - '{{.MOCKERY}}'
+
   deps:update:
     desc: "Обновление зависимостей в go.mod во всех модулях"
     cmds:
@@ -201,6 +222,28 @@ tasks:
             echo "🔄 Обновление зависимостей в $mod"
             (cd "$mod" && go mod tidy -compat=1.24) || exit 1
           fi
+        done
+
+  test-coverage:
+    desc: "Запускает unit-тесты и проверяет покрытие выше 40% для каждого сервиса"
+    cmds:
+      - |
+        set -e
+        MIN_COVERAGE=40
+        for mod in {{.SERVICE_MODULES}}; do
+          echo "🧪 Покрытие $mod"
+          (
+            cd "$mod"
+            TEST_PACKAGES=$(go list ./... | grep -v '/cmd$' | grep -v '/mocks$')
+            COVER_PACKAGES=$(echo "$TEST_PACKAGES" | tr '\n' ',' | sed 's/,$//')
+            go test $TEST_PACKAGES -coverpkg=$COVER_PACKAGES -coverprofile=coverage.out
+            TOTAL=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
+            echo "📊 $mod coverage: ${TOTAL}%"
+            awk -v total="$TOTAL" -v min="$MIN_COVERAGE" 'BEGIN { if (total + 0 < min) exit 1 }'
+          ) || {
+            echo "❌ Покрытие $mod ниже ${MIN_COVERAGE}%"
+            exit 1
+          }
         done
 
   grpcurl:install:
