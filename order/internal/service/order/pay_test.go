@@ -1,4 +1,4 @@
-package order
+package order_test
 
 import (
 	"context"
@@ -6,23 +6,29 @@ import (
 	"testing"
 
 	domain "github.com/Steadypim/rocket-factory/order/internal/domain/order"
+	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	"github.com/Steadypim/rocket-factory/order/internal/service/order/mocks"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
-	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func newPayService(
-	t *testing.T,
-) (*service, *mocks.MockOrderRepository, *mocks.MockPaymentClient) {
+type payService interface {
+	Pay(ctx context.Context, params order_service.PayParams) (string, error)
+}
+
+func newPayService(t *testing.T) (
+	payService,
+	*mocks.MockOrderRepository,
+	*mocks.MockPaymentClient,
+) {
 	t.Helper()
 
 	repository := mocks.NewMockOrderRepository(t)
 	inventoryClient := mocks.NewMockInventoryClient(t)
 	paymentClient := mocks.NewMockPaymentClient(t)
 
-	return NewOrderService(repository, inventoryClient, paymentClient), repository, paymentClient
+	return order_service.NewOrderService(repository, inventoryClient, paymentClient), repository, paymentClient
 }
 
 func TestPayUpdatesOrderAfterSuccessfulPayment(t *testing.T) {
@@ -38,12 +44,12 @@ func TestPayUpdatesOrderAfterSuccessfulPayment(t *testing.T) {
 		Return(storedOrder, nil).
 		Once()
 	paymentClient.EXPECT().
-		PayOrder(mock.Anything, mock.MatchedBy(func(request *payment_v1.PayOrderRequest) bool {
-			return request.GetOrderUuid() == "order-id" &&
-				request.GetUserUuid() == "user-id" &&
-				request.GetPaymentMethod() == payment_v1.PaymentMethod_PAYMENT_METHOD_CARD
+		PayOrder(mock.Anything, mock.MatchedBy(func(params order_service.PayOrderClientParams) bool {
+			return params.OrderID == "order-id" &&
+				params.UserID == "user-id" &&
+				params.PaymentMethod == shared_model.Card
 		})).
-		Return(&payment_v1.PayOrderResponse{TransactionUuid: "transaction-id"}, nil).
+		Return("transaction-id", nil).
 		Once()
 	repository.EXPECT().
 		Update(mock.Anything, mock.MatchedBy(func(entity domain.Order) bool {
@@ -54,7 +60,7 @@ func TestPayUpdatesOrderAfterSuccessfulPayment(t *testing.T) {
 		Return(nil).
 		Once()
 
-	transactionID, err := service.Pay(context.Background(), PayParams{
+	transactionID, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Card,
 	})
@@ -70,7 +76,7 @@ func TestPayRejectsAlreadyPaidOrderBeforeCallingPaymentClient(t *testing.T) {
 		Return(domain.Order{OrderID: "order-id", Status: domain.Paid}, nil).
 		Once()
 
-	_, err := service.Pay(context.Background(), PayParams{
+	_, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Card,
 	})
@@ -85,7 +91,7 @@ func TestPayRejectsCancelledOrderBeforeCallingPaymentClient(t *testing.T) {
 		Return(domain.Order{OrderID: "order-id", Status: domain.Cancelled}, nil).
 		Once()
 
-	_, err := service.Pay(context.Background(), PayParams{
+	_, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Card,
 	})
@@ -100,7 +106,7 @@ func TestPayRejectsUnknownPaymentMethodBeforeCallingPaymentClient(t *testing.T) 
 		Return(domain.Order{OrderID: "order-id", Status: domain.PendingPayment}, nil).
 		Once()
 
-	_, err := service.Pay(context.Background(), PayParams{
+	_, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Unknown,
 	})
@@ -117,10 +123,10 @@ func TestPayDoesNotUpdateOrderWhenPaymentFails(t *testing.T) {
 		Once()
 	paymentClient.EXPECT().
 		PayOrder(mock.Anything, mock.Anything).
-		Return(nil, paymentErr).
+		Return("", paymentErr).
 		Once()
 
-	_, err := service.Pay(context.Background(), PayParams{
+	_, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Card,
 	})
@@ -137,14 +143,14 @@ func TestPayReturnsRepositoryUpdateError(t *testing.T) {
 		Once()
 	paymentClient.EXPECT().
 		PayOrder(mock.Anything, mock.Anything).
-		Return(&payment_v1.PayOrderResponse{TransactionUuid: "transaction-id"}, nil).
+		Return("transaction-id", nil).
 		Once()
 	repository.EXPECT().
 		Update(mock.Anything, mock.Anything).
 		Return(updateErr).
 		Once()
 
-	_, err := service.Pay(context.Background(), PayParams{
+	_, err := service.Pay(context.Background(), order_service.PayParams{
 		OrderID:       "order-id",
 		PaymentMethod: shared_model.Card,
 	})

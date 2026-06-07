@@ -6,7 +6,6 @@ import (
 
 	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
-	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 )
 
 type PayParams struct {
@@ -30,22 +29,20 @@ func (s *service) Pay(ctx context.Context, params PayParams) (string, error) {
 	if storedOrder.Status == order.Paid {
 		return "", order.ErrOrderAlreadyPaid
 	}
-
-	protoMethod, err := paymentMethodToProto(params.PaymentMethod)
-	if err != nil {
-		return "", err
+	if !isKnownPaymentMethod(params.PaymentMethod) {
+		return "", order.ErrUnknownPaymentMethod
 	}
 
-	response, err := s.paymentClient.PayOrder(ctx, &payment_v1.PayOrderRequest{
-		OrderUuid:     storedOrder.OrderID,
-		UserUuid:      storedOrder.UserID,
-		PaymentMethod: protoMethod,
+	transactionID, err := s.paymentClient.PayOrder(ctx, PayOrderClientParams{
+		OrderID:       storedOrder.OrderID,
+		UserID:        storedOrder.UserID,
+		PaymentMethod: params.PaymentMethod,
 	})
 	if err != nil {
 		return "", fmt.Errorf("paymentClient.PayOrder: %w", err)
 	}
 
-	if err := storedOrder.MarkAsPaid(response.GetTransactionUuid(), params.PaymentMethod); err != nil {
+	if err := storedOrder.MarkAsPaid(transactionID, params.PaymentMethod); err != nil {
 		return "", fmt.Errorf("order.MarkAsPaid: %w", err)
 	}
 
@@ -53,23 +50,17 @@ func (s *service) Pay(ctx context.Context, params PayParams) (string, error) {
 		return "", fmt.Errorf("orderRepository.Update: %w", err)
 	}
 
-	return response.GetTransactionUuid(), nil
+	return transactionID, nil
 }
 
-func paymentMethodToProto(
-	method shared_model.PaymentMethod,
-) (payment_v1.PaymentMethod, error) {
+func isKnownPaymentMethod(method shared_model.PaymentMethod) bool {
 	switch method {
-	case shared_model.Card:
-		return payment_v1.PaymentMethod_PAYMENT_METHOD_CARD, nil
-	case shared_model.SBP:
-		return payment_v1.PaymentMethod_PAYMENT_METHOD_SBP, nil
-	case shared_model.CreditCard:
-		return payment_v1.PaymentMethod_PAYMENT_METHOD_CREDIT_CARD, nil
-	case shared_model.InvestorMoney:
-		return payment_v1.PaymentMethod_PAYMENT_METHOD_INVESTOR_MONEY, nil
+	case shared_model.Card,
+		shared_model.SBP,
+		shared_model.CreditCard,
+		shared_model.InvestorMoney:
+		return true
 	default:
-		return payment_v1.PaymentMethod_PAYMENT_METHOD_UNKNOWN,
-			order.ErrUnknownPaymentMethod
+		return false
 	}
 }

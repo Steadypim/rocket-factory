@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 type CreateParams struct {
@@ -23,19 +22,14 @@ func (s *service) Create(ctx context.Context, params CreateParams) (CreateResult
 		return CreateResult{}, order.ErrEmptyPartIDs
 	}
 
-	partsResponse, err := s.inventoryClient.ListParts(
-		ctx,
-		&inventory_v1.ListPartsRequest{
-			Uuids: params.PartIDs,
-		},
-	)
+	parts, err := s.inventoryClient.ListParts(ctx, params.PartIDs)
 	if err != nil {
 		return CreateResult{}, fmt.Errorf("inventoryClient.ListParts: %w", err)
 	}
 
-	partsByID := make(map[string]*inventory_v1.Part, len(partsResponse.Parts))
-	for _, part := range partsResponse.Parts {
-		partsByID[part.GetUuid()] = part
+	partsByID := make(map[string]InventoryPart, len(parts))
+	for _, part := range parts {
+		partsByID[part.ID] = part
 	}
 
 	var totalPrice float64
@@ -50,7 +44,7 @@ func (s *service) Create(ctx context.Context, params CreateParams) (CreateResult
 			)
 		}
 
-		totalPrice += part.GetPrice()
+		totalPrice += part.Price
 	}
 
 	entity, err := order.NewOrder(

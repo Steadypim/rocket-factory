@@ -4,10 +4,19 @@ import (
 	"context"
 
 	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
-	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"google.golang.org/grpc"
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 )
+
+type InventoryPart struct {
+	ID    string
+	Price float64
+}
+
+type PayOrderClientParams struct {
+	OrderID       string
+	UserID        string
+	PaymentMethod shared_model.PaymentMethod
+}
 
 type orderRepository interface {
 	Create(ctx context.Context, order order.Order) error
@@ -16,11 +25,11 @@ type orderRepository interface {
 }
 
 type inventoryClient interface {
-	ListParts(ctx context.Context, in *inventory_v1.ListPartsRequest, opts ...grpc.CallOption) (*inventory_v1.ListPartsResponse, error)
+	ListParts(ctx context.Context, partIDs []string) ([]InventoryPart, error)
 }
 
 type paymentClient interface {
-	PayOrder(ctx context.Context, in *payment_v1.PayOrderRequest, opts ...grpc.CallOption) (*payment_v1.PayOrderResponse, error)
+	PayOrder(ctx context.Context, params PayOrderClientParams) (string, error)
 }
 
 type service struct {

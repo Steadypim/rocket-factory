@@ -12,6 +12,8 @@ import (
 	"time"
 
 	order_api "github.com/Steadypim/rocket-factory/order/internal/api/order/v1"
+	inventory_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1"
+	payment_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1"
 	order_repository "github.com/Steadypim/rocket-factory/order/internal/repository/order"
 	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	order_v1 "github.com/Steadypim/rocket-factory/shared/pkg/openapi/order/v1"
@@ -53,8 +55,12 @@ func main() {
 	}
 	defer paymentConn.Close()
 
-	inventoryClient := inventory_v1.NewInventoryServiceClient(inventoryConn)
-	paymentClient := payment_v1.NewPaymentServiceClient(paymentConn)
+	inventoryClient := inventory_client.NewClient(
+		inventory_v1.NewInventoryServiceClient(inventoryConn),
+	)
+	paymentClient := payment_client.NewClient(
+		payment_v1.NewPaymentServiceClient(paymentConn),
+	)
 
 	orderRepository := order_repository.NewOrderRepository()
 	orderService := order_service.NewOrderService(

@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
+	"github.com/Steadypim/rocket-factory/order/internal/service/order"
 	mock "github.com/stretchr/testify/mock"
-	"google.golang.org/grpc"
 )
 
 // NewMockInventoryClient creates a new instance of MockInventoryClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -40,33 +39,27 @@ func (_m *MockInventoryClient) EXPECT() *MockInventoryClient_Expecter {
 }
 
 // ListParts provides a mock function for the type MockInventoryClient
-func (_mock *MockInventoryClient) ListParts(ctx context.Context, in *inventory_v1.ListPartsRequest, opts ...grpc.CallOption) (*inventory_v1.ListPartsResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
-	}
-	ret := tmpRet
+func (_mock *MockInventoryClient) ListParts(ctx context.Context, partIDs []string) ([]order.InventoryPart, error) {
+	ret := _mock.Called(ctx, partIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListParts")
 	}
 
-	var r0 *inventory_v1.ListPartsResponse
+	var r0 []order.InventoryPart
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *inventory_v1.ListPartsRequest, ...grpc.CallOption) (*inventory_v1.ListPartsResponse, error)); ok {
-		return returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]order.InventoryPart, error)); ok {
+		return returnFunc(ctx, partIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *inventory_v1.ListPartsRequest, ...grpc.CallOption) *inventory_v1.ListPartsResponse); ok {
-		r0 = returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []order.InventoryPart); ok {
+		r0 = returnFunc(ctx, partIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*inventory_v1.ListPartsResponse)
+			r0 = ret.Get(0).([]order.InventoryPart)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *inventory_v1.ListPartsRequest, ...grpc.CallOption) error); ok {
-		r1 = returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, partIDs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,44 +73,35 @@ type MockInventoryClient_ListParts_Call struct {
 
 // ListParts is a helper method to define mock.On call
 //   - ctx context.Context
-//   - in *inventory_v1.ListPartsRequest
-//   - opts ...grpc.CallOption
-func (_e *MockInventoryClient_Expecter) ListParts(ctx interface{}, in interface{}, opts ...interface{}) *MockInventoryClient_ListParts_Call {
-	return &MockInventoryClient_ListParts_Call{Call: _e.mock.On("ListParts",
-		append([]interface{}{ctx, in}, opts...)...)}
+//   - partIDs []string
+func (_e *MockInventoryClient_Expecter) ListParts(ctx interface{}, partIDs interface{}) *MockInventoryClient_ListParts_Call {
+	return &MockInventoryClient_ListParts_Call{Call: _e.mock.On("ListParts", ctx, partIDs)}
 }
 
-func (_c *MockInventoryClient_ListParts_Call) Run(run func(ctx context.Context, in *inventory_v1.ListPartsRequest, opts ...grpc.CallOption)) *MockInventoryClient_ListParts_Call {
+func (_c *MockInventoryClient_ListParts_Call) Run(run func(ctx context.Context, partIDs []string)) *MockInventoryClient_ListParts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *inventory_v1.ListPartsRequest
+		var arg1 []string
 		if args[1] != nil {
-			arg1 = args[1].(*inventory_v1.ListPartsRequest)
+			arg1 = args[1].([]string)
 		}
-		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
-		}
-		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockInventoryClient_ListParts_Call) Return(listPartsResponse *inventory_v1.ListPartsResponse, err error) *MockInventoryClient_ListParts_Call {
-	_c.Call.Return(listPartsResponse, err)
+func (_c *MockInventoryClient_ListParts_Call) Return(inventoryParts []order.InventoryPart, err error) *MockInventoryClient_ListParts_Call {
+	_c.Call.Return(inventoryParts, err)
 	return _c
 }
 
-func (_c *MockInventoryClient_ListParts_Call) RunAndReturn(run func(ctx context.Context, in *inventory_v1.ListPartsRequest, opts ...grpc.CallOption) (*inventory_v1.ListPartsResponse, error)) *MockInventoryClient_ListParts_Call {
+func (_c *MockInventoryClient_ListParts_Call) RunAndReturn(run func(ctx context.Context, partIDs []string) ([]order.InventoryPart, error)) *MockInventoryClient_ListParts_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -4,6 +4,18 @@ filename: "mock_{{.InterfaceName}}.go"
 pkgname: mocks
 
 packages:
+  github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1:
+    interfaces:
+      grpcClient:
+        config:
+          structname: MockInventoryGRPCClient
+
+  github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1:
+    interfaces:
+      grpcClient:
+        config:
+          structname: MockPaymentGRPCClient
+
   github.com/Steadypim/rocket-factory/order/internal/service/order:
     interfaces:
       orderRepository:

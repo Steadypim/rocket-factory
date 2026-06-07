@@ -7,9 +7,8 @@ package mocks
 import (
 	"context"
 
-	"github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
+	"github.com/Steadypim/rocket-factory/order/internal/service/order"
 	mock "github.com/stretchr/testify/mock"
-	"google.golang.org/grpc"
 )
 
 // NewMockPaymentClient creates a new instance of MockPaymentClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -40,33 +39,25 @@ func (_m *MockPaymentClient) EXPECT() *MockPaymentClient_Expecter {
 }
 
 // PayOrder provides a mock function for the type MockPaymentClient
-func (_mock *MockPaymentClient) PayOrder(ctx context.Context, in *payment_v1.PayOrderRequest, opts ...grpc.CallOption) (*payment_v1.PayOrderResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
-	}
-	ret := tmpRet
+func (_mock *MockPaymentClient) PayOrder(ctx context.Context, params order.PayOrderClientParams) (string, error) {
+	ret := _mock.Called(ctx, params)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PayOrder")
 	}
 
-	var r0 *payment_v1.PayOrderResponse
+	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *payment_v1.PayOrderRequest, ...grpc.CallOption) (*payment_v1.PayOrderResponse, error)); ok {
-		return returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, order.PayOrderClientParams) (string, error)); ok {
+		return returnFunc(ctx, params)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *payment_v1.PayOrderRequest, ...grpc.CallOption) *payment_v1.PayOrderResponse); ok {
-		r0 = returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, order.PayOrderClientParams) string); ok {
+		r0 = returnFunc(ctx, params)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*payment_v1.PayOrderResponse)
-		}
+		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *payment_v1.PayOrderRequest, ...grpc.CallOption) error); ok {
-		r1 = returnFunc(ctx, in, opts...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, order.PayOrderClientParams) error); ok {
+		r1 = returnFunc(ctx, params)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,44 +71,35 @@ type MockPaymentClient_PayOrder_Call struct {
 
 // PayOrder is a helper method to define mock.On call
 //   - ctx context.Context
-//   - in *payment_v1.PayOrderRequest
-//   - opts ...grpc.CallOption
-func (_e *MockPaymentClient_Expecter) PayOrder(ctx interface{}, in interface{}, opts ...interface{}) *MockPaymentClient_PayOrder_Call {
-	return &MockPaymentClient_PayOrder_Call{Call: _e.mock.On("PayOrder",
-		append([]interface{}{ctx, in}, opts...)...)}
+//   - params order.PayOrderClientParams
+func (_e *MockPaymentClient_Expecter) PayOrder(ctx interface{}, params interface{}) *MockPaymentClient_PayOrder_Call {
+	return &MockPaymentClient_PayOrder_Call{Call: _e.mock.On("PayOrder", ctx, params)}
 }
 
-func (_c *MockPaymentClient_PayOrder_Call) Run(run func(ctx context.Context, in *payment_v1.PayOrderRequest, opts ...grpc.CallOption)) *MockPaymentClient_PayOrder_Call {
+func (_c *MockPaymentClient_PayOrder_Call) Run(run func(ctx context.Context, params order.PayOrderClientParams)) *MockPaymentClient_PayOrder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *payment_v1.PayOrderRequest
+		var arg1 order.PayOrderClientParams
 		if args[1] != nil {
-			arg1 = args[1].(*payment_v1.PayOrderRequest)
+			arg1 = args[1].(order.PayOrderClientParams)
 		}
-		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
-		}
-		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockPaymentClient_PayOrder_Call) Return(payOrderResponse *payment_v1.PayOrderResponse, err error) *MockPaymentClient_PayOrder_Call {
-	_c.Call.Return(payOrderResponse, err)
+func (_c *MockPaymentClient_PayOrder_Call) Return(s string, err error) *MockPaymentClient_PayOrder_Call {
+	_c.Call.Return(s, err)
 	return _c
 }
 
-func (_c *MockPaymentClient_PayOrder_Call) RunAndReturn(run func(ctx context.Context, in *payment_v1.PayOrderRequest, opts ...grpc.CallOption) (*payment_v1.PayOrderResponse, error)) *MockPaymentClient_PayOrder_Call {
+func (_c *MockPaymentClient_PayOrder_Call) RunAndReturn(run func(ctx context.Context, params order.PayOrderClientParams) (string, error)) *MockPaymentClient_PayOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }
