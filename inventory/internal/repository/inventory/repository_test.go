@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
 	"github.com/stretchr/testify/require"
+
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
 )
 
 func testParts() []domain.Part {

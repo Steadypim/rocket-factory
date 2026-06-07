@@ -5,15 +5,16 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1/mocks"
 	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestPayOrderConvertsRequestAndResponse(t *testing.T) {

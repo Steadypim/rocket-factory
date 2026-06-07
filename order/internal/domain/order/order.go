@@ -1,8 +1,9 @@
 package order
 
 import (
-	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 	"github.com/google/uuid"
+
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 )
 
 type Order struct {

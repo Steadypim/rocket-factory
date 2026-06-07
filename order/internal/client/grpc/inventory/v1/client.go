@@ -3,8 +3,9 @@ package v1
 import (
 	"context"
 
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"google.golang.org/grpc"
+
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 type grpcClient interface {

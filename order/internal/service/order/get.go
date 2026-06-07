@@ -9,7 +9,6 @@ import (
 
 func (s *service) Get(ctx context.Context, orderID string) (order.Order, error) {
 	storedOrder, err := s.orderRepository.Get(ctx, orderID)
-
 	if err != nil {
 		return order.Order{}, fmt.Errorf("orderRepository.Get: %w", err)
 	}

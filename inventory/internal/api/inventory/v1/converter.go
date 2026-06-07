@@ -3,9 +3,10 @@ package v1
 import (
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
 	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func partToProto(part domain.Part) *inventory_v1.Part {

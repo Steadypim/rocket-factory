@@ -5,11 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	domain "github.com/Steadypim/rocket-factory/order/internal/domain/order"
 	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	"github.com/Steadypim/rocket-factory/order/internal/service/order/mocks"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 type createService interface {

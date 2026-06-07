@@ -3,9 +3,10 @@ package v1
 import (
 	"context"
 
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 func (a *api) GetPart(

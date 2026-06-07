@@ -6,13 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1/mocks"
-	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1/mocks"
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 func TestGetPartConvertsDomainPart(t *testing.T) {

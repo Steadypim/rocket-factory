@@ -3,9 +3,10 @@ package v1
 import (
 	"errors"
 
-	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
 )
 
 func mapError(err error) error {

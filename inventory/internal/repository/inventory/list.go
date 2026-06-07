@@ -34,7 +34,7 @@ func matches[T comparable](filter []T, value T) bool {
 	return len(filter) == 0 || slices.Contains(filter, value)
 }
 
-func matchesTags(partTags []string, filterTags []string) bool {
+func matchesTags(partTags, filterTags []string) bool {
 	if len(filterTags) == 0 {
 		return true
 	}

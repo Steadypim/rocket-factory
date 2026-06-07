@@ -5,13 +5,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	payment_mocks "github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1/mocks"
 	domain "github.com/Steadypim/rocket-factory/order/internal/domain/order"
 	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPayOrderConvertsRequestAndReturnsTransactionID(t *testing.T) {

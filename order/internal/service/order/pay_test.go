@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	domain "github.com/Steadypim/rocket-factory/order/internal/domain/order"
 	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	"github.com/Steadypim/rocket-factory/order/internal/service/order/mocks"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 type payService interface {

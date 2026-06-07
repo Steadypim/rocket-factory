@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
 	payment_api "github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1"
 	payment_repository "github.com/Steadypim/rocket-factory/payment/internal/repository/payment"
 	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
 	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 const grpcPort = 50052

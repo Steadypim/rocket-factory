@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	inventory_mocks "github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1/mocks"
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	inventory_mocks "github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1/mocks"
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 func TestListPartsConvertsRequestAndResponse(t *testing.T) {

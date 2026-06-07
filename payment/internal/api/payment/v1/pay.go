@@ -3,12 +3,13 @@ package v1
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func (a *api) PayOrder(

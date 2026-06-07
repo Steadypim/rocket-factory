@@ -3,10 +3,11 @@ package payment
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 	"github.com/Steadypim/rocket-factory/payment/internal/repository/converter"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
-	"github.com/google/uuid"
 )
 
 func (r *repository) Create(

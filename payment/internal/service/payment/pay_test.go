@@ -5,11 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 	"github.com/Steadypim/rocket-factory/payment/internal/service/payment/mocks"
 	shared_model "github.com/Steadypim/rocket-factory/shared/model"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPayCreatesTransaction(t *testing.T) {

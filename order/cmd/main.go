@@ -11,6 +11,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	order_api "github.com/Steadypim/rocket-factory/order/internal/api/order/v1"
 	inventory_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1"
 	payment_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1"
@@ -19,10 +24,6 @@ import (
 	order_v1 "github.com/Steadypim/rocket-factory/shared/pkg/openapi/order/v1"
 	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -43,17 +44,28 @@ func main() {
 		slog.Error("failed to create inventory client", "error", err)
 		os.Exit(1)
 	}
-	defer inventoryConn.Close()
 
 	paymentConn, err := grpc.NewClient(
 		paymentAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
+		if closeErr := inventoryConn.Close(); closeErr != nil {
+			slog.Error("failed to close inventory client", "error", closeErr)
+		}
 		slog.Error("failed to create payment client", "error", err)
 		os.Exit(1)
 	}
-	defer paymentConn.Close()
+	defer func() {
+		if closeErr := inventoryConn.Close(); closeErr != nil {
+			slog.Error("failed to close inventory client", "error", closeErr)
+		}
+	}()
+	defer func() {
+		if closeErr := paymentConn.Close(); closeErr != nil {
+			slog.Error("failed to close payment client", "error", closeErr)
+		}
+	}()
 
 	inventoryClient := inventory_client.NewClient(
 		inventory_v1.NewInventoryServiceClient(inventoryConn),

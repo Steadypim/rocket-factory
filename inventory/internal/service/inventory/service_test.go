@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
-	"github.com/Steadypim/rocket-factory/inventory/internal/service/inventory/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
+	"github.com/Steadypim/rocket-factory/inventory/internal/service/inventory/mocks"
 )
 
 func TestGet(t *testing.T) {

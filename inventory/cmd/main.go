@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+
 	inventory_api "github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1"
 	inventory_repository "github.com/Steadypim/rocket-factory/inventory/internal/repository/inventory"
 	inventory_service "github.com/Steadypim/rocket-factory/inventory/internal/service/inventory"
 	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 const grpcPort = 50051

@@ -3,10 +3,11 @@ package v1
 import (
 	"context"
 
-	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
-	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 func (a *api) ListParts(
@@ -37,7 +38,7 @@ func (a *api) ListParts(
 	return &inventory_v1.ListPartsResponse{Parts: result}, nil
 }
 
-func mergeFilters[T any](topLevel []T, nested []T) []T {
+func mergeFilters[T any](topLevel, nested []T) []T {
 	if len(nested) == 0 {
 		return topLevel
 	}

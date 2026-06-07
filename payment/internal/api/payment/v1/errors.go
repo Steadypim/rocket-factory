@@ -3,9 +3,10 @@ package v1
 import (
 	"errors"
 
-	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
 )
 
 func mapPayError(err error) error {

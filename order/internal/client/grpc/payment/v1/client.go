@@ -3,8 +3,9 @@ package v1
 import (
 	"context"
 
-	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 	"google.golang.org/grpc"
+
+	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 )
 
 type grpcClient interface {
