@@ -11,6 +11,7 @@ vars:
   PROTOC_GEN_GO_GRPC_VERSION: 'v1.5.1'
   OAPI_CODEGEN_VERSION: 'v2.7.0'
   GRPCURL_VERSION: 'v1.9.3'
+  MOCKERY_VERSION: 'v3.7.0'
 
   BIN_DIR: '{{.ROOT_DIR}}/bin'
   GOLANGCI_LINT: '{{.BIN_DIR}}/golangci-lint'
@@ -21,6 +22,7 @@ vars:
   PROTOC_GEN_GO: '{{.BIN_DIR}}/protoc-gen-go'
   PROTOC_GEN_GO_GRPC: '{{.BIN_DIR}}/protoc-gen-go-grpc'
   GRPCURL: '{{.BIN_DIR}}/grpcurl'
+  MOCKERY: '{{.BIN_DIR}}/mockery'
 
   OPEN_API_ORDER_V1_BASE: '{{.ROOT_DIR}}/shared/api/order/v1/order.openapi.yaml'
   OPEN_API_ORDER_V1_COMPONENTS: '{{.ROOT_DIR}}/shared/api/order/v1/components.openapi.yaml'
@@ -190,6 +192,25 @@ tasks:
     cmds:
       - task: proto:gen
       - task: oapi-codegen:gen
+      - task: mockery:gen
+
+  mockery:install:
+    desc: "Устанавливает mockery в ./bin"
+    cmds:
+      - |
+        if [ ! -x {{.MOCKERY}} ] || ! {{.MOCKERY}} version | grep -q '{{.MOCKERY_VERSION}}'; then
+          mkdir -p {{.BIN_DIR}}
+          echo 'Installing mockery {{.MOCKERY_VERSION}}...'
+          GOBIN={{.BIN_DIR}} go install github.com/vektra/mockery/v3@{{.MOCKERY_VERSION}}
+        fi
+    status:
+      - test -x {{.MOCKERY}} && {{.MOCKERY}} version | grep -q '{{.MOCKERY_VERSION}}'
+
+  mockery:gen:
+    desc: "Генерирует моки интерфейсов с помощью mockery"
+    deps: [ mockery:install ]
+    cmds:
+      - '{{.MOCKERY}} --config {{.ROOT_DIR}}/.mockery.yaml'
 
   deps:update:
     desc: "Обновление зависимостей в go.mod во всех модулях"
