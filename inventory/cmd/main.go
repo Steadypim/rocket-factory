@@ -8,36 +8,36 @@ import (
 	"os/signal"
 	"syscall"
 
-	apiv1 "github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1"
-	partrepo "github.com/Steadypim/rocket-factory/inventory/internal/repository/part"
-	partservice "github.com/Steadypim/rocket-factory/inventory/internal/service/part"
-	inventoryv1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	inventory_api "github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1"
+	inventory_repository "github.com/Steadypim/rocket-factory/inventory/internal/repository/inventory"
+	inventory_service "github.com/Steadypim/rocket-factory/inventory/internal/service/inventory"
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
 const grpcPort = 50051
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
 		slog.Error("failed to listen", "error", err)
-		return
+		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	inventoryRepository := inventory_repository.NewInventoryRepository()
+	inventoryService := inventory_service.NewInventoryService(inventoryRepository)
+	inventoryAPI := inventory_api.NewInventoryAPI(inventoryService)
 
-	partRepository := partrepo.NewRepository()
-	partService := partservice.NewService(partRepository)
-	inventoryAPI := apiv1.NewAPI(partService)
-
-	inventoryv1.RegisterInventoryServiceServer(grpcServer, inventoryAPI)
-	reflection.Register(grpcServer)
+	server := grpc.NewServer()
+	inventory_v1.RegisterInventoryServiceServer(server, inventoryAPI)
+	reflection.Register(server)
 
 	go func() {
-		slog.Info("🚀 gRPC inventory server listening", "port", grpcPort)
-		if err := grpcServer.Serve(lis); err != nil {
-			slog.Error("failed to serve", "error", err)
+		slog.Info("inventory gRPC server started", "port", grpcPort)
+		if err := server.Serve(listener); err != nil {
+			slog.Error("inventory gRPC server failed", "error", err)
 		}
 	}()
 
@@ -45,7 +45,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	slog.Info("🛑 Shutting down gRPC inventory server...")
-	grpcServer.GracefulStop()
-	slog.Info("✅ Inventory server stopped")
+	server.GracefulStop()
+	slog.Info("inventory gRPC server stopped")
 }

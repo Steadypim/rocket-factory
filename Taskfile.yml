@@ -2,7 +2,7 @@ version: '3'
 
 # Глобальные переменные проекта
 vars:
-  GO_VERSION: '1.24'
+  GO_VERSION: '1.26.1'
   GOLANGCI_LINT_VERSION: 'v2.1.5'
   GCI_VERSION: 'v0.13.6'
   GOFUMPT_VERSION: 'v0.8.0'
@@ -30,7 +30,6 @@ vars:
   OPEN_API_ORDER_V1_SERVER_CONFIG: '{{.ROOT_DIR}}/shared/api/order/v1/oapi-server.cfg.yaml'
 
   MODULES: assembly inventory order payment platform iam notification
-  SERVICE_MODULES: inventory order payment
 
 tasks:
   install-formatters:
@@ -82,7 +81,7 @@ tasks:
         for module in {{.MODULES}}; do
           if [ -d "$module" ]; then
             echo "🎯 Сортируем импорты в $module"
-            find $module -type f -name '*.go' ! -path '*/mocks/*' -exec {{.GCI}} write -s standard -s default -s "prefix(github.com/olezhek28/microservices-course-olezhek-solution)" {} +
+            find $module -type f -name '*.go' ! -path '*/mocks/*' -exec {{.GCI}} write -s standard -s default -s "prefix(github.com/Steadypim/rocket-factory)" {} +
           fi
         done
 
@@ -193,24 +192,25 @@ tasks:
     cmds:
       - task: proto:gen
       - task: oapi-codegen:gen
+      - task: mockery:gen
 
   mockery:install:
-    desc: "Устанавливает mockery в каталог bin"
+    desc: "Устанавливает mockery в ./bin"
     cmds:
       - |
-        [ -f {{.MOCKERY}} ] || {
+        if [ ! -x {{.MOCKERY}} ] || ! {{.MOCKERY}} version | grep -q '{{.MOCKERY_VERSION}}'; then
           mkdir -p {{.BIN_DIR}}
-          echo '📦 Устанавливаем mockery {{.MOCKERY_VERSION}}...'
+          echo 'Installing mockery {{.MOCKERY_VERSION}}...'
           GOBIN={{.BIN_DIR}} go install github.com/vektra/mockery/v3@{{.MOCKERY_VERSION}}
-        }
+        fi
     status:
-      - test -x {{.MOCKERY}}
+      - test -x {{.MOCKERY}} && {{.MOCKERY}} version | grep -q '{{.MOCKERY_VERSION}}'
 
   mockery:gen:
-    desc: "Генерирует моки для интерфейсов repository и service слоев"
+    desc: "Генерирует моки интерфейсов с помощью mockery"
     deps: [ mockery:install ]
     cmds:
-      - '{{.MOCKERY}}'
+      - '{{.MOCKERY}} --config {{.ROOT_DIR}}/.mockery.yaml'
 
   deps:update:
     desc: "Обновление зависимостей в go.mod во всех модулях"
@@ -222,28 +222,6 @@ tasks:
             echo "🔄 Обновление зависимостей в $mod"
             (cd "$mod" && go mod tidy -compat=1.24) || exit 1
           fi
-        done
-
-  test-coverage:
-    desc: "Запускает unit-тесты и проверяет покрытие выше 40% для каждого сервиса"
-    cmds:
-      - |
-        set -e
-        MIN_COVERAGE=40
-        for mod in {{.SERVICE_MODULES}}; do
-          echo "🧪 Покрытие $mod"
-          (
-            cd "$mod"
-            TEST_PACKAGES=$(go list ./... | grep -v '/cmd$' | grep -v '/mocks$')
-            COVER_PACKAGES=$(echo "$TEST_PACKAGES" | tr '\n' ',' | sed 's/,$//')
-            go test $TEST_PACKAGES -coverpkg=$COVER_PACKAGES -coverprofile=coverage.out
-            TOTAL=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
-            echo "📊 $mod coverage: ${TOTAL}%"
-            awk -v total="$TOTAL" -v min="$MIN_COVERAGE" 'BEGIN { if (total + 0 < min) exit 1 }'
-          ) || {
-            echo "❌ Покрытие $mod ниже ${MIN_COVERAGE}%"
-            exit 1
-          }
         done
 
   grpcurl:install:

@@ -2,33 +2,65 @@ package order
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/Steadypim/rocket-factory/order/internal/model"
-	sharedmodel "github.com/Steadypim/rocket-factory/shared/pkg/model"
+	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 )
 
-func (s *service) Pay(
-	ctx context.Context,
-	orderUUID string,
-	method sharedmodel.PaymentMethod,
-) (*model.Order, error) {
-	storedOrder, err := s.orderRepository.Get(ctx, orderUUID)
+type PayParams struct {
+	OrderID       string
+	PaymentMethod shared_model.PaymentMethod
+}
+
+func (s *service) Pay(ctx context.Context, params PayParams) (string, error) {
+	if params.OrderID == "" {
+		return "", order.ErrEmptyOrderID
+	}
+
+	storedOrder, err := s.Get(ctx, params.OrderID)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("s.Get: %w", err)
 	}
 
-	if storedOrder.OrderStatus == model.OrderStatusCancelled {
-		return nil, model.ErrCancelledCanNotBePaid
+	if storedOrder.Status == order.Cancelled {
+		return "", order.ErrCancelledCanNotBePaid
+	}
+	if storedOrder.Status == order.Paid {
+		return "", order.ErrOrderAlreadyPaid
+	}
+	if !isKnownPaymentMethod(params.PaymentMethod) {
+		return "", order.ErrUnknownPaymentMethod
 	}
 
-	if storedOrder.OrderStatus == model.OrderStatusPaid {
-		return nil, model.ErrOrderAlreadyPaid
-	}
-
-	transactionUUID, err := s.paymentClient.PayOrder(ctx, orderUUID, storedOrder.UserUUID, method)
+	transactionID, err := s.paymentClient.PayOrder(ctx, PayOrderClientParams{
+		OrderID:       storedOrder.OrderID,
+		UserID:        storedOrder.UserID,
+		PaymentMethod: params.PaymentMethod,
+	})
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("paymentClient.PayOrder: %w", err)
 	}
 
-	return s.orderRepository.Pay(ctx, orderUUID, method, transactionUUID)
+	if err := storedOrder.MarkAsPaid(transactionID, params.PaymentMethod); err != nil {
+		return "", fmt.Errorf("order.MarkAsPaid: %w", err)
+	}
+
+	if err := s.orderRepository.Update(ctx, storedOrder); err != nil {
+		return "", fmt.Errorf("orderRepository.Update: %w", err)
+	}
+
+	return transactionID, nil
+}
+
+func isKnownPaymentMethod(method shared_model.PaymentMethod) bool {
+	switch method {
+	case shared_model.Card,
+		shared_model.SBP,
+		shared_model.CreditCard,
+		shared_model.InvestorMoney:
+		return true
+	default:
+		return false
+	}
 }

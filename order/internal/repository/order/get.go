@@ -3,17 +3,22 @@ package order
 import (
 	"context"
 
-	"github.com/Steadypim/rocket-factory/order/internal/model"
+	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
+	"github.com/Steadypim/rocket-factory/order/internal/repository/converter"
 )
 
-func (r *repository) Get(_ context.Context, orderUUID string) (*model.Order, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	order, ok := r.orders[orderUUID]
-	if !ok {
-		return nil, model.ErrOrderNotFound
+func (r *repository) Get(ctx context.Context, orderID string) (order.Order, error) {
+	if orderID == "" {
+		return order.Order{}, order.ErrEmptyOrderID
 	}
 
-	return &order, nil
+	r.mu.RLock()
+	orderRecord, ok := r.orders[orderID]
+	r.mu.RUnlock()
+
+	if !ok {
+		return order.Order{}, order.ErrOrderNotFound
+	}
+
+	return *converter.RecordToOrder(orderRecord), nil
 }

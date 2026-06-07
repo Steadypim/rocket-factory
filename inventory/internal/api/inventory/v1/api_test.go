@@ -4,73 +4,150 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
-	"github.com/Steadypim/rocket-factory/inventory/internal/model"
-	inventoryv1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1/mocks"
+	domain "github.com/Steadypim/rocket-factory/inventory/internal/domain/inventory"
+	inventory_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/inventory/v1"
 )
 
-type partServiceStub struct {
-	part  *model.Part
-	parts []model.Part
-	err   error
+func TestGetPartConvertsDomainPart(t *testing.T) {
+	createdAt := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	updatedAt := createdAt.Add(time.Hour)
+	service := mocks.NewMockInventoryService(t)
+	service.EXPECT().
+		Get(mock.Anything, "part-id").
+		Return(domain.Part{
+			ID:            "part-id",
+			Name:          "Engine",
+			Description:   "Main engine",
+			Price:         100,
+			StockQuantity: 4,
+			Category:      domain.CategoryEngine,
+			Dimensions:    &domain.Dimensions{Length: 1, Width: 2, Height: 3, Weight: 4},
+			Manufacturer:  &domain.Manufacturer{Name: "Factory", Country: "USA", Website: "https://example.com"},
+			Tags:          []string{"engine"},
+			Metadata: map[string]domain.MetadataValue{
+				"text":   {Kind: domain.MetadataValueString, StringValue: "value"},
+				"count":  {Kind: domain.MetadataValueInt64, Int64Value: 7},
+				"ratio":  {Kind: domain.MetadataValueDouble, DoubleValue: 1.5},
+				"active": {Kind: domain.MetadataValueBool, BoolValue: true},
+			},
+			CreatedAt: &createdAt,
+			UpdatedAt: &updatedAt,
+		}, nil).
+		Once()
+
+	api := NewInventoryAPI(service)
+
+	response, err := api.GetPart(context.Background(), &inventory_v1.GetPartRequest{Uuid: "part-id"})
+
+	require.NoError(t, err)
+	require.Equal(t, "Engine", response.GetPart().GetName())
+	require.Equal(t, inventory_v1.Category_ENGINE, response.GetPart().GetCategory())
+	require.Equal(t, "USA", response.GetPart().GetManufacturer().GetCountry())
+	require.Equal(t, "value", response.GetPart().GetMetadata()["text"].GetStringValue())
+	require.EqualValues(t, 7, response.GetPart().GetMetadata()["count"].GetInt64Value())
+	require.Equal(t, 1.5, response.GetPart().GetMetadata()["ratio"].GetDoubleValue())
+	require.True(t, response.GetPart().GetMetadata()["active"].GetBoolValue())
+	require.True(t, response.GetPart().GetCreatedAt().AsTime().Equal(createdAt))
+	require.True(t, response.GetPart().GetUpdatedAt().AsTime().Equal(updatedAt))
 }
 
-func (s partServiceStub) Get(_ context.Context, _ string) (*model.Part, error) {
-	return s.part, s.err
-}
-
-func (s partServiceStub) List(_ context.Context, _ model.PartsFilter) ([]model.Part, error) {
-	return s.parts, s.err
-}
-
-func TestGetPartReturnsProtoPart(t *testing.T) {
-	t.Parallel()
-
-	api := NewAPI(partServiceStub{part: &model.Part{UUID: "part-1", Name: "Engine"}})
-
-	resp, err := api.GetPart(context.Background(), &inventoryv1.GetPartRequest{Uuid: "part-1"})
-	if err != nil {
-		t.Fatalf("GetPart returned error: %v", err)
+func TestGetPartMapsErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		code codes.Code
+	}{
+		{name: "empty id", err: domain.ErrEmptyPartID, code: codes.InvalidArgument},
+		{name: "not found", err: domain.ErrPartNotFound, code: codes.NotFound},
+		{name: "internal", err: errors.New("storage failed"), code: codes.Internal},
 	}
-	if resp.GetPart().GetUuid() != "part-1" {
-		t.Fatalf("uuid = %q, want part-1", resp.GetPart().GetUuid())
-	}
-}
 
-func TestGetPartMapsNotFoundToGrpcCode(t *testing.T) {
-	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := mocks.NewMockInventoryService(t)
+			service.EXPECT().
+				Get(mock.Anything, mock.Anything).
+				Return(domain.Part{}, tt.err).
+				Once()
 
-	api := NewAPI(partServiceStub{err: model.ErrPartNotFound})
+			api := NewInventoryAPI(service)
+			_, err := api.GetPart(context.Background(), &inventory_v1.GetPartRequest{})
 
-	_, err := api.GetPart(context.Background(), &inventoryv1.GetPartRequest{Uuid: "missing"})
-	if status.Code(err) != codes.NotFound {
-		t.Fatalf("code = %v, want NotFound", status.Code(err))
+			require.Equal(t, tt.code, status.Code(err))
+		})
 	}
 }
 
-func TestListPartsReturnsProtoParts(t *testing.T) {
-	t.Parallel()
+func TestGetPartRejectsNilRequest(t *testing.T) {
+	api := NewInventoryAPI(mocks.NewMockInventoryService(t))
 
-	api := NewAPI(partServiceStub{parts: []model.Part{{UUID: "part-1"}, {UUID: "part-2"}}})
+	_, err := api.GetPart(context.Background(), nil)
 
-	resp, err := api.ListParts(context.Background(), &inventoryv1.ListPartsRequest{})
-	if err != nil {
-		t.Fatalf("ListParts returned error: %v", err)
-	}
-	if len(resp.GetParts()) != 2 {
-		t.Fatalf("parts len = %d, want 2", len(resp.GetParts()))
-	}
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func TestListPartsMapsUnexpectedErrorToInternal(t *testing.T) {
-	t.Parallel()
+func TestListPartsMergesFilters(t *testing.T) {
+	service := mocks.NewMockInventoryService(t)
+	service.EXPECT().
+		List(mock.Anything, domain.Filter{
+			IDs:                   []string{"top-id", "nested-id"},
+			Names:                 []string{"top-name", "nested-name"},
+			Categories:            []domain.Category{domain.CategoryEngine, domain.CategoryWing},
+			ManufacturerCountries: []string{"USA", "Germany"},
+			Tags:                  []string{"top-tag", "nested-tag"},
+		}).
+		Return([]domain.Part{{ID: "part-id", Category: domain.CategoryFuel}}, nil).
+		Once()
 
-	api := NewAPI(partServiceStub{err: errors.New("database is unavailable")})
+	api := NewInventoryAPI(service)
 
-	_, err := api.ListParts(context.Background(), &inventoryv1.ListPartsRequest{})
-	if status.Code(err) != codes.Internal {
-		t.Fatalf("code = %v, want Internal", status.Code(err))
-	}
+	response, err := api.ListParts(context.Background(), &inventory_v1.ListPartsRequest{
+		Uuids:                 []string{"top-id"},
+		Names:                 []string{"top-name"},
+		Categories:            []inventory_v1.Category{inventory_v1.Category_ENGINE},
+		ManufacturerCountries: []string{"USA"},
+		Tags:                  []string{"top-tag"},
+		Filter: &inventory_v1.PartsFilter{
+			Uuids:                 []string{"nested-id"},
+			Names:                 []string{"nested-name"},
+			Categories:            []inventory_v1.Category{inventory_v1.Category_WING},
+			ManufacturerCountries: []string{"Germany"},
+			Tags:                  []string{"nested-tag"},
+		},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, response.GetParts(), 1)
+	require.Equal(t, "part-id", response.GetParts()[0].GetUuid())
+	require.Equal(t, inventory_v1.Category_FUEL, response.GetParts()[0].GetCategory())
+}
+
+func TestListPartsMapsServiceError(t *testing.T) {
+	service := mocks.NewMockInventoryService(t)
+	service.EXPECT().
+		List(mock.Anything, domain.Filter{}).
+		Return(nil, errors.New("storage failed")).
+		Once()
+
+	api := NewInventoryAPI(service)
+
+	_, err := api.ListParts(context.Background(), &inventory_v1.ListPartsRequest{})
+
+	require.Equal(t, codes.Internal, status.Code(err))
+}
+
+func TestListPartsRejectsNilRequest(t *testing.T) {
+	api := NewInventoryAPI(mocks.NewMockInventoryService(t))
+
+	_, err := api.ListParts(context.Background(), nil)
+
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }

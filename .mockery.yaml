@@ -1,0 +1,59 @@
+template: testify
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{.InterfaceName}}.go"
+pkgname: mocks
+
+packages:
+  github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1:
+    interfaces:
+      grpcClient:
+        config:
+          structname: MockInventoryGRPCClient
+
+  github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1:
+    interfaces:
+      grpcClient:
+        config:
+          structname: MockPaymentGRPCClient
+
+  github.com/Steadypim/rocket-factory/order/internal/service/order:
+    interfaces:
+      orderRepository:
+        config:
+          structname: MockOrderRepository
+      inventoryClient:
+        config:
+          structname: MockInventoryClient
+      paymentClient:
+        config:
+          structname: MockPaymentClient
+
+  github.com/Steadypim/rocket-factory/order/internal/api/order/v1:
+    interfaces:
+      orderService:
+        config:
+          structname: MockOrderService
+
+  github.com/Steadypim/rocket-factory/payment/internal/service/payment:
+    interfaces:
+      paymentRepository:
+        config:
+          structname: MockPaymentRepository
+
+  github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1:
+    interfaces:
+      paymentService:
+        config:
+          structname: MockPaymentService
+
+  github.com/Steadypim/rocket-factory/inventory/internal/service/inventory:
+    interfaces:
+      inventoryRepository:
+        config:
+          structname: MockInventoryRepository
+
+  github.com/Steadypim/rocket-factory/inventory/internal/api/inventory/v1:
+    interfaces:
+      inventoryService:
+        config:
+          structname: MockInventoryService

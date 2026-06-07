@@ -8,34 +8,36 @@ import (
 	"os/signal"
 	"syscall"
 
-	apiv1 "github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1"
-	paymentservice "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
-	paymentv1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	payment_api "github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1"
+	payment_repository "github.com/Steadypim/rocket-factory/payment/internal/repository/payment"
+	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
+	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 )
 
 const grpcPort = 50052
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", grpcPort))
 	if err != nil {
 		slog.Error("failed to listen", "error", err)
-		return
+		os.Exit(1)
 	}
 
-	grpcServer := grpc.NewServer()
+	paymentRepository := payment_repository.NewPaymentRepository()
+	paymentService := payment_service.NewPaymentService(paymentRepository)
+	paymentAPI := payment_api.NewPaymentAPI(paymentService)
 
-	paymentService := paymentservice.NewService()
-	paymentAPI := apiv1.NewAPI(paymentService)
-
-	paymentv1.RegisterPaymentServiceServer(grpcServer, paymentAPI)
-	reflection.Register(grpcServer)
+	server := grpc.NewServer()
+	payment_v1.RegisterPaymentServiceServer(server, paymentAPI)
+	reflection.Register(server)
 
 	go func() {
-		slog.Info("🚀 gRPC payment server listening", "port", grpcPort)
-		if err := grpcServer.Serve(lis); err != nil {
-			slog.Error("failed to serve", "error", err)
+		slog.Info("payment gRPC server started", "port", grpcPort)
+		if err := server.Serve(listener); err != nil {
+			slog.Error("payment gRPC server failed", "error", err)
 		}
 	}()
 
@@ -43,7 +45,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	slog.Info("🛑 Shutting down gRPC payment server...")
-	grpcServer.GracefulStop()
-	slog.Info("✅ Payment server stopped")
+	server.GracefulStop()
+	slog.Info("payment gRPC server stopped")
 }

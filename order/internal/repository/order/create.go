@@ -3,19 +3,16 @@ package order
 import (
 	"context"
 
-	"github.com/Steadypim/rocket-factory/order/internal/model"
-
-	"github.com/google/uuid"
+	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
+	"github.com/Steadypim/rocket-factory/order/internal/repository/converter"
 )
 
-func (r *repository) Create(_ context.Context, order model.Order) (*model.Order, error) {
-	order.OrderUUID = uuid.NewString()
-	order.OrderStatus = model.OrderStatusPendingPayment
+func (r *repository) Create(ctx context.Context, order order.Order) error {
+	orderRecord := converter.OrderToRecord(order)
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.orders[orderRecord.OrderID] = *orderRecord
+	r.mu.Unlock()
 
-	r.orders[order.OrderUUID] = order
-
-	return &order, nil
+	return nil
 }

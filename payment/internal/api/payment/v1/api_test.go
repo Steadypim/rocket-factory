@@ -5,79 +5,115 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Steadypim/rocket-factory/payment/internal/model"
-	sharedmodel "github.com/Steadypim/rocket-factory/shared/pkg/model"
-	paymentv1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/Steadypim/rocket-factory/payment/internal/api/payment/v1/mocks"
+	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
+	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
+	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 )
 
-type paymentServiceStub struct {
-	payment *model.Payment
-	err     error
-}
-
-func (s paymentServiceStub) PayOrder(_ context.Context, payment model.Payment) (*model.Payment, error) {
-	if s.err != nil {
-		return nil, s.err
+func TestPayOrderConvertsRequestAndResponse(t *testing.T) {
+	methods := []struct {
+		proto  payment_v1.PaymentMethod
+		domain shared_model.PaymentMethod
+	}{
+		{payment_v1.PaymentMethod_PAYMENT_METHOD_CARD, shared_model.Card},
+		{payment_v1.PaymentMethod_PAYMENT_METHOD_SBP, shared_model.SBP},
+		{payment_v1.PaymentMethod_PAYMENT_METHOD_CREDIT_CARD, shared_model.CreditCard},
+		{payment_v1.PaymentMethod_PAYMENT_METHOD_INVESTOR_MONEY, shared_model.InvestorMoney},
 	}
 
-	payment.TransactionUUID = s.payment.TransactionUUID
-	return &payment, nil
+	for _, tt := range methods {
+		t.Run(tt.proto.String(), func(t *testing.T) {
+			service := mocks.NewMockPaymentService(t)
+			service.EXPECT().
+				Pay(mock.Anything, payment_service.PayParams{
+					OrderID:       "order-id",
+					UserID:        "user-id",
+					PaymentMethod: tt.domain,
+				}).
+				Return(payment_service.PayResult{TransactionID: "transaction-id"}, nil).
+				Once()
+
+			api := NewPaymentAPI(service)
+
+			response, err := api.PayOrder(context.Background(), &payment_v1.PayOrderRequest{
+				OrderUuid:     "order-id",
+				UserUuid:      "user-id",
+				PaymentMethod: tt.proto,
+			})
+
+			require.NoError(t, err)
+			require.Equal(t, "transaction-id", response.GetTransactionUuid())
+		})
+	}
 }
 
-func TestPayOrderReturnsTransactionUUID(t *testing.T) {
-	t.Parallel()
+func TestPayOrderRejectsUnknownPaymentMethod(t *testing.T) {
+	service := mocks.NewMockPaymentService(t)
+	api := NewPaymentAPI(service)
 
-	api := NewAPI(paymentServiceStub{payment: &model.Payment{TransactionUUID: "tx-1"}})
-
-	resp, err := api.PayOrder(context.Background(), &paymentv1.PayOrderRequest{
-		OrderUuid:     "order-1",
-		UserUuid:      "user-1",
-		PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_CARD,
+	_, err := api.PayOrder(context.Background(), &payment_v1.PayOrderRequest{
+		OrderUuid:     "order-id",
+		UserUuid:      "user-id",
+		PaymentMethod: payment_v1.PaymentMethod_PAYMENT_METHOD_UNKNOWN,
 	})
-	if err != nil {
-		t.Fatalf("PayOrder returned error: %v", err)
-	}
-	if resp.GetTransactionUuid() != "tx-1" {
-		t.Fatalf("TransactionUUID = %q, want tx-1", resp.GetTransactionUuid())
-	}
+
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func TestPayOrderConvertsPaymentMethod(t *testing.T) {
-	t.Parallel()
+func TestPayOrderMapsDomainValidationError(t *testing.T) {
+	service := mocks.NewMockPaymentService(t)
+	service.EXPECT().
+		Pay(mock.Anything, payment_service.PayParams{
+			UserID:        "user-id",
+			PaymentMethod: shared_model.Card,
+		}).
+		Return(payment_service.PayResult{}, errors.Join(errors.New("create transaction"), domain.ErrEmptyOrderID)).
+		Once()
 
-	var gotMethod sharedmodel.PaymentMethod
-	api := NewAPI(paymentServiceFunc(func(_ context.Context, payment model.Payment) (*model.Payment, error) {
-		gotMethod = payment.PaymentMethod
-		payment.TransactionUUID = "tx-1"
-		return &payment, nil
-	}))
+	api := NewPaymentAPI(service)
 
-	_, err := api.PayOrder(context.Background(), &paymentv1.PayOrderRequest{
-		PaymentMethod: paymentv1.PaymentMethod_PAYMENT_METHOD_SBP,
+	_, err := api.PayOrder(context.Background(), &payment_v1.PayOrderRequest{
+		UserUuid:      "user-id",
+		PaymentMethod: payment_v1.PaymentMethod_PAYMENT_METHOD_CARD,
 	})
-	if err != nil {
-		t.Fatalf("PayOrder returned error: %v", err)
-	}
-	if gotMethod != sharedmodel.PaymentMethodSBP {
-		t.Fatalf("PaymentMethod = %v, want SBP", gotMethod)
-	}
+
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func TestPayOrderMapsServiceErrorToInternal(t *testing.T) {
-	t.Parallel()
+func TestPayOrderMapsUnexpectedError(t *testing.T) {
+	service := mocks.NewMockPaymentService(t)
+	service.EXPECT().
+		Pay(mock.Anything, payment_service.PayParams{
+			OrderID:       "order-id",
+			UserID:        "user-id",
+			PaymentMethod: shared_model.Card,
+		}).
+		Return(payment_service.PayResult{}, errors.New("storage unavailable")).
+		Once()
 
-	api := NewAPI(paymentServiceStub{err: errors.New("payment provider is unavailable")})
+	api := NewPaymentAPI(service)
 
-	_, err := api.PayOrder(context.Background(), &paymentv1.PayOrderRequest{})
-	if status.Code(err) != codes.Internal {
-		t.Fatalf("code = %v, want Internal", status.Code(err))
-	}
+	_, err := api.PayOrder(context.Background(), &payment_v1.PayOrderRequest{
+		OrderUuid:     "order-id",
+		UserUuid:      "user-id",
+		PaymentMethod: payment_v1.PaymentMethod_PAYMENT_METHOD_CARD,
+	})
+
+	require.Equal(t, codes.Internal, status.Code(err))
 }
 
-type paymentServiceFunc func(context.Context, model.Payment) (*model.Payment, error)
+func TestPayOrderRejectsNilRequest(t *testing.T) {
+	service := mocks.NewMockPaymentService(t)
+	api := NewPaymentAPI(service)
 
-func (f paymentServiceFunc) PayOrder(ctx context.Context, payment model.Payment) (*model.Payment, error) {
-	return f(ctx, payment)
+	_, err := api.PayOrder(context.Background(), nil)
+
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }

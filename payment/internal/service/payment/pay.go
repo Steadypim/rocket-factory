@@ -2,16 +2,33 @@ package payment
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 
-	"github.com/Steadypim/rocket-factory/payment/internal/model"
-	"github.com/google/uuid"
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 )
 
-func (s *Service) PayOrder(_ context.Context, payment model.Payment) (*model.Payment, error) {
-	payment.TransactionUUID = uuid.NewString()
+type PayParams struct {
+	OrderID       string
+	UserID        string
+	PaymentMethod shared_model.PaymentMethod
+}
 
-	slog.Info("payment completed", "transaction_uuid", payment.TransactionUUID)
+type PayResult struct {
+	TransactionID string
+}
 
-	return &payment, nil
+func (s *service) Pay(ctx context.Context, params PayParams) (PayResult, error) {
+	transaction, err := s.paymentRepository.Create(
+		ctx,
+		params.OrderID,
+		params.UserID,
+		params.PaymentMethod,
+	)
+	if err != nil {
+		return PayResult{}, fmt.Errorf("paymentRepository.Create: %w", err)
+	}
+
+	return PayResult{
+		TransactionID: transaction.TransactionID,
+	}, nil
 }

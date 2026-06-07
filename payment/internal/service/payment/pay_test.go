@@ -2,29 +2,51 @@ package payment
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	"github.com/Steadypim/rocket-factory/payment/internal/model"
-	sharedmodel "github.com/Steadypim/rocket-factory/shared/pkg/model"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	domain "github.com/Steadypim/rocket-factory/payment/internal/domain/payment"
+	"github.com/Steadypim/rocket-factory/payment/internal/service/payment/mocks"
+	shared_model "github.com/Steadypim/rocket-factory/shared/model"
 )
 
-func TestPayOrderGeneratesTransactionUUID(t *testing.T) {
-	t.Parallel()
+func TestPayCreatesTransaction(t *testing.T) {
+	repository := mocks.NewMockPaymentRepository(t)
+	repository.EXPECT().
+		Create(mock.Anything, "order-id", "user-id", shared_model.CreditCard).
+		Return(domain.Transaction{TransactionID: "transaction-id"}, nil).
+		Once()
 
-	service := NewService()
+	service := NewPaymentService(repository)
 
-	payment, err := service.PayOrder(context.Background(), model.Payment{
-		OrderUUID:     "order-1",
-		UserUUID:      "user-1",
-		PaymentMethod: sharedmodel.PaymentMethodCard,
+	result, err := service.Pay(context.Background(), PayParams{
+		OrderID:       "order-id",
+		UserID:        "user-id",
+		PaymentMethod: shared_model.CreditCard,
 	})
-	if err != nil {
-		t.Fatalf("PayOrder returned error: %v", err)
-	}
-	if payment.TransactionUUID == "" {
-		t.Fatal("TransactionUUID is empty")
-	}
-	if payment.OrderUUID != "order-1" {
-		t.Fatalf("OrderUUID = %q, want order-1", payment.OrderUUID)
-	}
+
+	require.NoError(t, err)
+	require.Equal(t, "transaction-id", result.TransactionID)
+}
+
+func TestPayWrapsRepositoryError(t *testing.T) {
+	repositoryErr := errors.New("repository failed")
+	repository := mocks.NewMockPaymentRepository(t)
+	repository.EXPECT().
+		Create(mock.Anything, "order-id", "user-id", shared_model.Card).
+		Return(domain.Transaction{}, repositoryErr).
+		Once()
+
+	service := NewPaymentService(repository)
+
+	_, err := service.Pay(context.Background(), PayParams{
+		OrderID:       "order-id",
+		UserID:        "user-id",
+		PaymentMethod: shared_model.Card,
+	})
+
+	require.ErrorIs(t, err, repositoryErr)
 }

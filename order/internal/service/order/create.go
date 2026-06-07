@@ -4,44 +4,64 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Steadypim/rocket-factory/order/internal/model"
+	"github.com/Steadypim/rocket-factory/order/internal/domain/order"
 )
 
-func (s *service) Create(ctx context.Context, order model.Order) (*model.Order, error) {
-	if order.UserUUID == "" {
-		return nil, model.ErrUserUUIDIsRequired
+type CreateParams struct {
+	UserID  string
+	PartIDs []string
+}
+
+type CreateResult struct {
+	OrderID    string
+	TotalPrice float32
+}
+
+func (s *service) Create(ctx context.Context, params CreateParams) (CreateResult, error) {
+	if len(params.PartIDs) == 0 {
+		return CreateResult{}, order.ErrEmptyPartIDs
 	}
 
-	if len(order.PartUUIDs) == 0 {
-		return nil, model.ErrPartUUIDsIsRequired
-	}
-
-	parts, err := s.inventoryClient.ListParts(ctx, order.PartUUIDs)
+	parts, err := s.inventoryClient.ListParts(ctx, params.PartIDs)
 	if err != nil {
-		return nil, fmt.Errorf("inventory service not responding: %w", err)
+		return CreateResult{}, fmt.Errorf("inventoryClient.ListParts: %w", err)
 	}
 
-	foundParts := make(map[string]float32, len(parts))
+	partsByID := make(map[string]InventoryPart, len(parts))
 	for _, part := range parts {
-		foundParts[part.UUID] = part.Price
+		partsByID[part.ID] = part
 	}
 
-	var totalPrice float32
+	var totalPrice float64
 
-	for _, partUUID := range order.PartUUIDs {
-		price, ok := foundParts[partUUID]
-		if !ok {
-			return nil, fmt.Errorf("%w: %s", model.ErrPartNotFound, partUUID)
+	for _, partID := range params.PartIDs {
+		part, found := partsByID[partID]
+		if !found {
+			return CreateResult{}, fmt.Errorf(
+				"%w: %s",
+				order.ErrPartNotFound,
+				partID,
+			)
 		}
-		totalPrice += price
-	}
-	order.TotalPrice = totalPrice
-	order.OrderStatus = model.OrderStatusPendingPayment
 
-	createdOrder, err := s.orderRepository.Create(ctx, order)
+		totalPrice += part.Price
+	}
+
+	entity, err := order.NewOrder(
+		params.UserID,
+		params.PartIDs,
+		float32(totalPrice),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
+		return CreateResult{}, fmt.Errorf("domain.NewOrder: %w", err)
 	}
 
-	return createdOrder, nil
+	if err := s.orderRepository.Create(ctx, entity); err != nil {
+		return CreateResult{}, fmt.Errorf("orderRepository.Create: %w", err)
+	}
+
+	return CreateResult{
+		OrderID:    entity.OrderID,
+		TotalPrice: entity.TotalPrice,
+	}, nil
 }

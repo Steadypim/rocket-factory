@@ -1,16 +1,26 @@
 package v1
 
 import (
-	"github.com/Steadypim/rocket-factory/payment/internal/service"
-	paymentv1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
+	"context"
+
+	payment_service "github.com/Steadypim/rocket-factory/payment/internal/service/payment"
+	payment_v1 "github.com/Steadypim/rocket-factory/shared/pkg/proto/payment/v1"
 )
 
-type API struct {
-	paymentv1.UnimplementedPaymentServiceServer
-
-	paymentService service.PaymentService
+type paymentService interface {
+	Pay(
+		ctx context.Context,
+		params payment_service.PayParams,
+	) (payment_service.PayResult, error)
 }
 
-func NewAPI(paymentService service.PaymentService) *API {
-	return &API{paymentService: paymentService}
+type api struct {
+	payment_v1.UnimplementedPaymentServiceServer
+	paymentService paymentService
+}
+
+func NewPaymentAPI(paymentService paymentService) *api {
+	return &api{
+		paymentService: paymentService,
+	}
 }
