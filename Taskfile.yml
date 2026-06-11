@@ -218,11 +218,26 @@ tasks:
       - |
         echo "🔄 Обновление зависимостей в go.mod во всех модулях"
         for mod in {{.MODULES}}; do
-          if [ -d "$mod" ]; then
+          if [ -f "$mod/go.mod" ]; then
             echo "🔄 Обновление зависимостей в $mod"
-            (cd "$mod" && go mod tidy -compat=1.24) || exit 1
+            (cd "$mod" && go mod tidy) || exit 1
           fi
         done
+
+  test:
+    desc: "Запускает unit-тесты во всех Go-модулях"
+    cmds:
+      - |
+        set -e
+        ERR=0
+        echo "🧪 Запускаем unit-тесты во всех модулях ..."
+        for mod in {{.MODULES}}; do
+          if [ -f "$mod/go.mod" ]; then
+            echo "🧪 Тестируем $mod module"
+            (cd "$mod" && go test ./...) || ERR=1
+          fi
+        done
+        exit $ERR
 
   grpcurl:install:
     desc: "Устанавливает grpcurl в каталог bin"
@@ -234,6 +249,62 @@ tasks:
         }
     status:
       - test -x {{.GRPCURL}}
+
+  up-core:
+    desc: Поднять core контейнеры
+    dir: deploy/compose/core
+    cmds:
+      - echo "[task] 🚀 Поднимаем core контейнеры"
+      - docker compose up --build --detach
+
+  down-core:
+    desc: Остановить и удалить core контейнеры
+    dir: deploy/compose/core
+    cmds:
+      - echo "[task] 🛑 Останавливаем core контейнеры"
+      - docker compose down --volumes
+
+  up-inventory:
+    desc: Поднять inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 📦 Поднимаем inventory сервис с зависимостями"
+      - docker compose up --build --detach
+
+  down-inventory:
+    desc: Остановить и удалить inventory сервис и все его зависимости
+    dir: deploy/compose/inventory
+    cmds:
+      - echo "[task] 🛑 Останавливаем inventory сервис с зависимостями"
+      - docker compose down --volumes
+
+  up-order:
+    desc: Поднять order сервис и все его зависимости
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 📦 Поднимаем order сервис с зависимостями"
+      - docker compose up --build --detach
+
+  down-order:
+    desc: Остановить и удалить order сервис и все его зависимости
+    dir: deploy/compose/order
+    cmds:
+      - echo "[task] 🛑 Останавливаем order сервис с зависимостями"
+      - docker compose down --volumes
+
+  up-all:
+    desc: Поднять все сервисы по очереди вместе с зависимостями
+    cmds:
+      - task up-core
+      - task up-inventory
+      - task up-order
+
+  down-all:
+    desc: Остановить и удалить все сервисы по очереди вместе с зависимостями
+    cmds:
+      - task down-order
+      - task down-inventory
+      - task down-core
 
   test-api:
     desc: "🧪 Запуск тестов для проверки API микросервисов"
