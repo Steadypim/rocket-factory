@@ -28,6 +28,12 @@ packages:
         config:
           structname: MockPaymentClient
 
+  github.com/Steadypim/rocket-factory/order/internal/repository/order:
+    interfaces:
+      database:
+        config:
+          structname: MockDatabase
+
   github.com/Steadypim/rocket-factory/order/internal/api/order/v1:
     interfaces:
       orderService:

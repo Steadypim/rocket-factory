@@ -13,12 +13,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
 	order_api "github.com/Steadypim/rocket-factory/order/internal/api/order/v1"
 	inventory_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/inventory/v1"
 	payment_client "github.com/Steadypim/rocket-factory/order/internal/client/grpc/payment/v1"
+	"github.com/Steadypim/rocket-factory/order/internal/migrator"
 	order_repository "github.com/Steadypim/rocket-factory/order/internal/repository/order"
 	order_service "github.com/Steadypim/rocket-factory/order/internal/service/order"
 	order_v1 "github.com/Steadypim/rocket-factory/shared/pkg/openapi/order/v1"
@@ -36,6 +41,18 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+
+	if err := godotenv.Load(".env"); err != nil && !errors.Is(err, os.ErrNotExist) {
+		slog.Error("failed to load .env file", "error", err)
+	}
+
+	dbURI := os.Getenv("DB_URI")
+	if dbURI == "" {
+		slog.Error("DB_URI is required")
+		return
+	}
+
 	inventoryConn, err := grpc.NewClient(
 		inventoryAddress,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -74,7 +91,43 @@ func main() {
 		payment_v1.NewPaymentServiceClient(paymentConn),
 	)
 
-	orderRepository := order_repository.NewOrderRepository()
+	config, err := pgx.ParseConfig(dbURI)
+	if err != nil {
+		slog.Error("pgx.ParseConfig", "error", err)
+		return
+	}
+	migrationCon := stdlib.OpenDB(*config)
+	defer func() {
+		if err := migrationCon.Close(); err != nil {
+			slog.Error("failed to close migration connection", "error", err)
+		}
+	}()
+
+	if err := migrationCon.PingContext(ctx); err != nil {
+		slog.Error("database is unavailable", "error", err)
+		return
+	}
+
+	migratorRunner := migrator.NewMigrator(migrationCon)
+	if err := migratorRunner.Up(ctx); err != nil {
+		slog.Error("failed to migrate database", "error", err)
+		return
+	}
+
+	pool, err := pgxpool.New(ctx, dbURI)
+	if err != nil {
+		slog.Error("failed to create database pool", "error", err)
+		return
+	}
+	defer pool.Close()
+
+	if err := pool.Ping(ctx); err != nil {
+		slog.Error("failed to ping database pool", "error", err)
+		return
+	}
+
+	orderRepository := order_repository.NewOrderRepository(pool)
+
 	orderService := order_service.NewOrderService(
 		orderRepository,
 		inventoryClient,

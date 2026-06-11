@@ -1,0 +1,33 @@
+name: Test Reusable
+
+on:
+  workflow_call:
+    inputs:
+      modules:
+        required: true
+        type: string
+      go-version:
+        required: true
+        type: string
+
+jobs:
+  unit-tests:
+    name: Test all Go modules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Go
+        uses: actions/setup-go@v5.4.0
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Install Task
+        uses: arduino/setup-task@v2.0.0
+
+      - name: Run unit tests
+        env:
+          MODULES: ${{ inputs.modules }}
+        run: task test
